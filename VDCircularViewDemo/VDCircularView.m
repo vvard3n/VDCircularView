@@ -27,11 +27,12 @@
 @implementation VDCircularView
 
 - (void)setItemSize:(CGSize)itemSize {
-    if (itemSize.height < self.bounds.size.height * 0.8) {
-        itemSize.height = self.bounds.size.height * 0.8 ;
+    if (itemSize.height < self.bounds.size.height * 0.6) {
+        itemSize.height = self.bounds.size.height * 0.6 ;
     }
     
     _itemSize = itemSize;
+    self.flowLayout.itemSize = itemSize;
 }
 
 - (void)setDatas:(NSArray<VDCircularModel *> *)datas {
@@ -64,7 +65,7 @@
     [super layoutSubviews];
 //    self.circularView.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
     
-    self.flowLayout.itemSize = CGSizeMake(kScreenWidth - 2 * 35, (kScreenWidth - 2 * 35) / 16.0 * 9);
+    self.flowLayout.itemSize = self.itemSize;
     
     self.circularView.contentOffset = CGPointMake((self.datas.count / 3) * (self.flowLayout.itemSize.width + self.minimumLineSpacing) - (self.bounds.size.width - self.flowLayout.itemSize.width) * 0.5, 0);
     _currentOffsetX = (self.datas.count / 3) * (self.flowLayout.itemSize.width + self.minimumLineSpacing) - (self.bounds.size.width - self.flowLayout.itemSize.width) * 0.5;
@@ -80,13 +81,22 @@
     self.flowLayout.scaleFactor = scaleFactor;
 }
 
+- (void)setCornerRadius:(CGFloat)cornerRadius {
+    _cornerRadius = cornerRadius;
+    [self.circularView reloadData];
+}
+
+- (void)setShadowEnable:(BOOL)shadowEnable {
+    _shadowEnable = shadowEnable;
+    [self.circularView reloadData];
+}
+
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame:frame]) {
         
         VDCircularLayout *collectionViewFlowLayout = [[VDCircularLayout alloc] init];
         self.flowLayout = collectionViewFlowLayout;
         self.flowLayout.scrollDirection = UICollectionViewScrollDirectionHorizontal;
-        collectionViewFlowLayout.itemSize = CGSizeMake(kScreenWidth - 2 * 35, (kScreenWidth - 2 * 35) / 16.0 * 9);
         collectionViewFlowLayout.minimumInteritemSpacing = 0;
         collectionViewFlowLayout.minimumLineSpacing = 0;
         UICollectionView *circularView = [[UICollectionView alloc] initWithFrame:CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height) collectionViewLayout:collectionViewFlowLayout];
@@ -101,9 +111,11 @@
         [circularView registerClass:[VDCircularViewCell class] forCellWithReuseIdentifier:@"cell"];
         [self addSubview:circularView];
         
+        self.autoScrollDuration = 3;
+        self.itemSize = CGSizeMake(kScreenWidth - 2 * 50, (kScreenWidth - 2 * 50) / 16.0 * 9);
+        self.cornerRadius = 0;
         self.autoScrollType = VDCircularViewAutoScrollTypeLeft;
         self.minimumLineSpacing = 0;
-//        self.scaleFactor = 1.05;
         self.scaleFactor = 1;
         self.autoScroll = NO;
     }
@@ -114,6 +126,8 @@
 - (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath {
     VDCircularViewCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:@"cell" forIndexPath:indexPath];
     cell.model = self.datas[indexPath.item];
+    cell.cornerRadius = self.cornerRadius;
+    cell.shadowEnable = self.shadowEnable;
     return cell;
 }
 
@@ -186,7 +200,7 @@
 #pragma mark autoScorll
 - (void)startAutoScroll {
     [self stopAutoScroll];
-    NSTimer *timer = [NSTimer timerWithTimeInterval:3 target:self selector:@selector(nextPage) userInfo:nil repeats:YES];
+    NSTimer *timer = [NSTimer timerWithTimeInterval:self.autoScrollDuration target:self selector:@selector(nextPage) userInfo:nil repeats:YES];
     self.timer = timer;
     [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
     [timer setFireDate:[NSDate dateWithTimeIntervalSinceNow:5]];
@@ -224,27 +238,10 @@
 @property (nonatomic, weak) UIImageView *imgView;
 @property (nonatomic, weak) UILabel *titleLbl;
 @property (nonatomic, weak) CALayer *maskLayer;
+@property (nonatomic, weak) CALayer *shadowLayer;
 @end
 
 @implementation VDCircularViewCell
-
-- (void)layoutSubviews {
-    [super layoutSubviews];
-    CGFloat titleHeight = [self.titleLbl sizeThatFits:CGSizeMake(self.contentView.bounds.size.width - 15 * 2, CGFLOAT_MAX)].height;
-//    CGRect frame = self.titleLbl.frame;
-//    self.titleLbl.frame = CGRectMake(frame.origin.x, frame.origin.y - 15, frame.size.width, titleHeight);
-    
-    [[[self.imgView.layer sublayers] lastObject] removeFromSuperlayer];
-    CAGradientLayer *layer = [CAGradientLayer layer];
-    layer.startPoint = CGPointMake(0.5, 0);
-    layer.endPoint = CGPointMake(0.5, 1);
-    layer.colors = @[(__bridge id)[UIColor clearColor].CGColor,
-                     (__bridge id)[UIColor colorWithRed:0 green:0 blue:0 alpha:0.5].CGColor];
-    layer.locations = @[@0.0f,@1.0f];
-    self.maskLayer = layer;
-    [self.imgView.layer addSublayer:layer];
-    self.maskLayer.frame = CGRectMake(0, self.contentView.bounds.size.height - titleHeight - 20 - 15, self.contentView.bounds.size.width, titleHeight + 20 + 15);
-}
 
 - (void)setModel:(VDCircularModel *)model {
     _model = model;
@@ -254,6 +251,23 @@
     self.titleLbl.text = model.title;
     CGFloat titleHeight = [self.titleLbl sizeThatFits:CGSizeMake(self.contentView.bounds.size.width - 15 * 2, CGFLOAT_MAX)].height;
     self.titleLbl.frame = CGRectMake(15, self.contentView.bounds.size.height - titleHeight - 15, self.contentView.bounds.size.width - 15 * 2, titleHeight);
+    
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    self.maskLayer.frame = CGRectMake(0, self.contentView.bounds.size.height - titleHeight - 20 - 15, self.contentView.bounds.size.width, titleHeight + 20 + 15);
+    self.maskLayer.hidden = !model.title || model.title.length == 0;
+    [CATransaction commit];
+}
+
+- (void)setCornerRadius:(CGFloat)cornerRadius {
+    _cornerRadius = cornerRadius;
+    self.contentView.layer.cornerRadius = cornerRadius;
+    self.shadowLayer.cornerRadius = cornerRadius;
+}
+
+- (void)setShadowEnable:(BOOL )shadowEnable {
+    _shadowEnable = shadowEnable;
+    self.shadowLayer.hidden = !shadowEnable;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -261,30 +275,31 @@
         self.layer.masksToBounds = NO;
         
         CALayer *shadowLayer = [CALayer layer];
+        self.shadowLayer = shadowLayer;
+        shadowLayer.cornerRadius = 0;
         shadowLayer.backgroundColor = [UIColor whiteColor].CGColor;
-        shadowLayer.frame = CGRectMake(10, 0, self.layer.bounds.size.width - 20, self.layer.bounds.size.height);
+        shadowLayer.frame = self.layer.bounds;
         shadowLayer.masksToBounds = NO;
         shadowLayer.shadowColor = [UIColor blackColor].CGColor;
-        shadowLayer.shadowOffset = CGSizeMake(0, 3);
+        shadowLayer.shadowOffset = CGSizeMake(0, 0);
         shadowLayer.shadowOpacity = 0.3f;
-        shadowLayer.shadowRadius = 3.0f;
+        shadowLayer.shadowRadius = 7.5;
         shadowLayer.shouldRasterize = YES;
         shadowLayer.rasterizationScale = [UIScreen mainScreen].scale;
-        shadowLayer.shadowPath = [UIBezierPath bezierPathWithRect:CGRectMake(0, 0, self.layer.bounds.size.width - 20, self.layer.bounds.size.height)].CGPath;
-        [self.contentView.layer insertSublayer:shadowLayer below:self.contentView.layer];
+        [self.layer insertSublayer:shadowLayer below:self.contentView.layer];
         
-        self.contentView.backgroundColor = [UIColor whiteColor];
+        self.contentView.layer.cornerRadius = 0;
+        self.contentView.layer.masksToBounds = YES;
+        
         UIImageView *imgView = [[UIImageView alloc] init];
         imgView.backgroundColor = [UIColor lightGrayColor];
         imgView.contentMode = UIViewContentModeScaleAspectFill;
         imgView.layer.masksToBounds = YES;
-
+        
         UILabel *titleLbl = [[UILabel alloc] init];
         titleLbl.textAlignment = NSTextAlignmentLeft;
-        titleLbl.font = [UIFont systemFontOfSize:17];
+        titleLbl.font = [UIFont boldSystemFontOfSize:18];
         titleLbl.textColor = [UIColor whiteColor];
-        titleLbl.shadowColor = [UIColor blackColor];
-        titleLbl.shadowOffset = CGSizeMake(0.5, 0.5);
         titleLbl.numberOfLines = 2;
         
         CAGradientLayer *layer = [CAGradientLayer layer];
@@ -293,25 +308,17 @@
         layer.colors = @[(__bridge id)[UIColor clearColor].CGColor,
                          (__bridge id)[UIColor colorWithRed:0 green:0 blue:0 alpha:0.5].CGColor];
         layer.locations = @[@0.0f,@1.0f];
-        self.maskLayer = layer;
-        [self.imgView.layer addSublayer:layer];
+        [imgView.layer addSublayer:layer];
+        layer.frame = CGRectMake(0, self.contentView.bounds.size.height * 0.5, self.contentView.bounds.size.width, self.contentView.bounds.size.height * 0.5);
         
+        self.maskLayer = layer;
         self.imgView = imgView;
         self.titleLbl = titleLbl;
         
         [self.contentView addSubview:imgView];
         [self.contentView addSubview:titleLbl];
         
-//        [imgView mas_makeConstraints:^(MASConstraintMaker *make) {
-//            make.left.right.top.bottom.offset(0);
-//        }];
-        imgView.frame = CGRectMake(0, 0, self.bounds.size.width, self.bounds.size.height);
-//        [titleLbl mas_makeConstraints:^(MASConstraintMaker *make) {
-//            make.bottom.offset(-10);
-//            make.left.offset(12);
-//            make.right.offset(-12);
-//            make.height.offset(30).priorityHigh();
-//        }];
+        imgView.frame = self.bounds;
     }
     return self;
 }

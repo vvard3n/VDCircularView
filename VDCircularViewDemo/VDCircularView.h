@@ -52,6 +52,21 @@ typedef NS_OPTIONS(NSUInteger, VDCircularViewAutoScrollType) {
  */
 @property (nonatomic, assign) VDCircularViewAutoScrollType autoScrollType;
 
+/**
+ 自动轮播翻页时间
+ */
+@property (nonatomic, assign) NSTimeInterval autoScrollDuration;
+
+/**
+ 圆角
+ */
+@property (nonatomic, assign) CGFloat cornerRadius;
+
+/**
+ 阴影
+ */
+@property (nonatomic, assign) BOOL shadowEnable;
+
 @property (nonatomic, strong) NSArray <VDCircularModel *>*datas;
 
 @property (nonatomic, weak) id <VDCircularViewDelegate> delegate;
@@ -64,5 +79,7 @@ typedef NS_OPTIONS(NSUInteger, VDCircularViewAutoScrollType) {
 @interface VDCircularViewCell : UICollectionViewCell
 
 @property (nonatomic, strong) VDCircularModel *model;
+@property (nonatomic, assign) CGFloat cornerRadius;
+@property (nonatomic, assign) BOOL shadowEnable;
 
 @end
